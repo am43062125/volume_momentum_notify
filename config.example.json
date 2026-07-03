@@ -1,0 +1,57 @@
+{
+  "backtest": {
+    "period_years": 5,
+    "evaluation_horizons": [21, 63, 126, 252],
+    "reentry_cooldown_days": 60
+  },
+  "data": {
+    "database_path": "data/volume_momentum.sqlite3",
+    "yfinance_cache_dir": "data/yfinance_cache",
+    "jpx_listed_issues_url": "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls",
+    "benchmark_tickers": {
+      "topix": "1306.T",
+      "nikkei225": "^N225"
+    },
+    "price_period": "5y",
+    "price_interval": "1d"
+  },
+  "universe": {
+    "enable_current_market_cap_filter": true,
+    "min_current_market_cap": 30000000000
+  },
+  "signal": {
+    "short_trading_value_window": 5,
+    "long_trading_value_window": 20,
+    "inflow_ratio_threshold": 1.8,
+    "min_consecutive_days": 5,
+    "min_long_trading_value": 3000000000,
+    "moving_average_window": 75,
+    "require_close_above_previous": true,
+    "close_lookback_days": 5
+  },
+  "report": {
+    "output_dir": "reports",
+    "language": "ja"
+  },
+  "daily": {
+    "enabled": true,
+    "output_dir": "reports/daily",
+    "monitoring_lookback_days": 63,
+    "early_monitoring_days": 21,
+    "send_empty_email": false,
+    "price_refresh_lookback_days": 10,
+    "notification_history_mode": "ticker_event_date"
+  },
+  "email": {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "use_starttls": true,
+    "use_ssl": false,
+    "username_env": "GMAIL_SMTP_USER",
+    "password_env": "GMAIL_APP_PASSWORD",
+    "from_env": "MAIL_FROM",
+    "to_env": "MAIL_TO",
+    "cc_env": "MAIL_CC",
+    "bcc_env": "MAIL_BCC"
+  }
+}

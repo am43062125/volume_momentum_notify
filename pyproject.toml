@@ -1,0 +1,19 @@
+[project]
+name = "volume-momentum"
+version = "0.1.0"
+description = "Event study framework for Japanese stock trading-value momentum."
+requires-python = ">=3.11"
+dependencies = [
+  "pandas",
+  "yfinance",
+  "xlrd",
+]
+
+[project.optional-dependencies]
+test = []
+
+[project.scripts]
+volume-momentum = "volume_momentum.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

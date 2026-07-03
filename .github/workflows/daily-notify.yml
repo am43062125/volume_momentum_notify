@@ -1,0 +1,78 @@
+name: Daily volume momentum notification
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Limit tickers for smoke testing. Empty means all tickers."
+        required: false
+        default: ""
+      send_email:
+        description: "Send Gmail notification."
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  daily-notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Restore SQLite and yfinance cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/volume_momentum.sqlite3
+            data/yfinance_cache
+          key: volume-momentum-cache-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            volume-momentum-cache-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: python -m pip install -e .
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
+        env:
+          PYTHONPATH: src
+
+      - name: Run daily notification
+        shell: bash
+        env:
+          GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_CC: ${{ secrets.MAIL_CC }}
+          MAIL_BCC: ${{ secrets.MAIL_BCC }}
+        run: |
+          args=(--config config.example.json daily-notify --download --market-caps)
+          if [[ -n "${{ github.event.inputs.limit }}" ]]; then
+            args+=(--limit "${{ github.event.inputs.limit }}")
+          fi
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event.inputs.send_email }}" == "true" ]]; then
+            args+=(--send-email)
+          else
+            args+=(--dry-run)
+          fi
+          python -m volume_momentum.cli "${args[@]}"
+
+      - name: Upload daily reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-volume-momentum-reports
+          path: reports/daily
+          if-no-files-found: ignore
