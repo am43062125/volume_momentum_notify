@@ -107,6 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     daily_parser.add_argument("--download", action="store_true", help="日次価格データをyfinanceから差分更新します。")
     daily_parser.add_argument("--market-caps", action="store_true", help="現在時価総額を更新します。")
     daily_parser.add_argument("--send-email", action="store_true", help="Gmail SMTPでメールを送信します。")
+    daily_parser.add_argument("--send-empty-email", action="store_true", help="通知対象が0件でもメールを送信します。疎通確認用です。")
     daily_parser.add_argument("--dry-run", action="store_true", help="メール送信と通知履歴登録を行わず、レポートのみ出力します。")
     daily_parser.add_argument("--limit", type=_limit_arg, default=None, help="処理する銘柄数の上限。動作確認用です。")
     daily_parser.add_argument("--as-of", default=None, help="対象取引日をYYYY-MM-DDで指定します。通常は最新取引日を使います。")
@@ -169,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
                 download=args.download,
                 fetch_market_caps=args.market_caps,
                 send_email=args.send_email,
+                send_empty_email=args.send_empty_email,
                 dry_run=args.dry_run,
                 limit=args.limit,
                 as_of=args.as_of,
@@ -413,6 +415,7 @@ def _run_daily_notify(
     download: bool,
     fetch_market_caps: bool,
     send_email: bool,
+    send_empty_email: bool,
     dry_run: bool,
     limit: int | None,
     as_of: str | None,
@@ -450,7 +453,8 @@ def _run_daily_notify(
         )
 
         email_sent = False
-        if send_email and not dry_run and should_send_email(config, daily_events):
+        email_requested = should_send_email(config, daily_events) or send_empty_email
+        if send_email and not dry_run and email_requested:
             env = dict(load_env_file(env_file))
             env.update({key: value for key, value in os.environ.items() if key not in env})
             send_gmail(

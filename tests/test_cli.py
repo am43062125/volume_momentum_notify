@@ -24,9 +24,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual(_analysis_start_date("2026-07-02", 5), "2021-07-02")
 
     def test_daily_notify_accepts_github_style_limit_input(self):
-        args = build_parser().parse_args(["daily-notify", "--limit", "limit=5", "--dry-run"])
+        args = build_parser().parse_args(["daily-notify", "--limit", "limit=5", "--send-empty-email", "--dry-run"])
 
         self.assertEqual(args.limit, 5)
+        self.assertTrue(args.send_empty_email)
 
     def test_fetch_and_store_market_caps_uses_yfinance_adapter(self):
         with tempfile.TemporaryDirectory() as tmpdir:

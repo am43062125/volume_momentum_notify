@@ -14,6 +14,11 @@ on:
         required: true
         type: boolean
         default: false
+      send_empty_email:
+        description: "Send email even when there are no new or monitoring events."
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   daily-notify:
@@ -59,6 +64,7 @@ jobs:
           MAIL_BCC: ${{ secrets.MAIL_BCC }}
           INPUT_LIMIT: ${{ github.event.inputs.limit }}
           INPUT_SEND_EMAIL: ${{ github.event.inputs.send_email }}
+          INPUT_SEND_EMPTY_EMAIL: ${{ github.event.inputs.send_empty_email }}
         run: |
           args=(--config config.example.json daily-notify --download --market-caps)
           limit_value="${INPUT_LIMIT#limit=}"
@@ -73,6 +79,9 @@ jobs:
             args+=(--send-email)
           else
             args+=(--dry-run)
+          fi
+          if [[ "$INPUT_SEND_EMPTY_EMAIL" == "true" ]]; then
+            args+=(--send-empty-email)
           fi
           python -m volume_momentum.cli "${args[@]}"
 
