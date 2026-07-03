@@ -12,7 +12,7 @@ class ConfigTests(unittest.TestCase):
 
         self.assertEqual(config.backtest.period_years, 5)
         self.assertEqual(config.backtest.evaluation_horizons, (21, 63, 126, 252))
-        self.assertEqual(str(config.data.yfinance_cache_dir), "data\\yfinance_cache")
+        self.assertEqual(config.data.yfinance_cache_dir, Path("data") / "yfinance_cache")
         self.assertIn("jpx.co.jp", config.data.jpx_listed_issues_url)
         self.assertTrue(config.universe.enable_current_market_cap_filter)
         self.assertEqual(config.universe.min_current_market_cap, 30_000_000_000)
