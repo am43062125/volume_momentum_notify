@@ -339,8 +339,8 @@ def send_gmail(config: AppConfig, subject: str, body: str, env: dict[str, str] |
     env = env or os.environ
     username = _required_env(env, config.email.username_env)
     password = _required_env(env, config.email.password_env)
-    from_addr = _required_env(env, config.email.from_env)
-    to_addrs = _split_addresses(_required_env(env, config.email.to_env))
+    from_addr = _optional_env(env, config.email.from_env) or username
+    to_addrs = _split_addresses(_optional_env(env, config.email.to_env) or username)
     cc_addrs = _split_addresses(env.get(config.email.cc_env or "", ""))
     bcc_addrs = _split_addresses(env.get(config.email.bcc_env or "", ""))
 
@@ -528,6 +528,11 @@ def _required_env(env: dict[str, str], key: str) -> str:
     if not value:
         raise DailyNotificationError(f"Environment variable is required: {key}")
     return value
+
+
+def _optional_env(env: dict[str, str], key: str) -> str | None:
+    value = env.get(key)
+    return value or None
 
 
 def _split_addresses(value: str) -> list[str]:

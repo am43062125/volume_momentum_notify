@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
@@ -7,6 +8,7 @@ from volume_momentum.daily import (
     classify_daily_events,
     daily_email_subject,
     render_email_body,
+    send_gmail,
     should_send_email,
     signal_key,
 )
@@ -85,6 +87,26 @@ class DailyNotificationTests(unittest.TestCase):
         self.assertNotIn("| 銘柄 |", body)
         self.assertEqual(subject, "[売買代金モメンタム] 2026-07-10 新規1件 / 監視中0件")
         self.assertTrue(should_send_email(config, daily_events))
+
+    def test_send_gmail_defaults_from_and_to_to_username(self):
+        config = load_config("config.example.json")
+        smtp_instance = MagicMock()
+        smtp_context = MagicMock()
+        smtp_context.__enter__.return_value = smtp_instance
+        env = {
+            "GMAIL_SMTP_USER": "sender@example.com",
+            "GMAIL_APP_PASSWORD": "app-password",
+        }
+
+        with patch("volume_momentum.daily.smtplib.SMTP", return_value=smtp_context):
+            send_gmail(config, "subject", "body", env=env)
+
+        smtp_instance.login.assert_called_once_with("sender@example.com", "app-password")
+        sent_message = smtp_instance.send_message.call_args.args[0]
+        sent_recipients = smtp_instance.send_message.call_args.kwargs["to_addrs"]
+        self.assertEqual(sent_message["From"], "sender@example.com")
+        self.assertEqual(sent_message["To"], "sender@example.com")
+        self.assertEqual(sent_recipients, ["sender@example.com"])
 
 
 def _event(ticker: str, event_date: str, adj_close: float) -> dict[str, object]:

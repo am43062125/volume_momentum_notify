@@ -176,11 +176,14 @@ Gmail送信では、通常のGoogleアカウントパスワードではなく Gm
 ```text
 GMAIL_SMTP_USER=your-account@gmail.com
 GMAIL_APP_PASSWORD=your-app-password
-MAIL_FROM=your-account@gmail.com
-MAIL_TO=destination@example.com
+MAIL_FROM=
+MAIL_TO=
 MAIL_CC=
 MAIL_BCC=
 ```
+
+`MAIL_FROM` と `MAIL_TO` は省略可能です。
+未指定の場合は、どちらも `GMAIL_SMTP_USER` と同じメールアドレスを使用します。
 
 ## GitHub Actions運用
 
@@ -195,8 +198,8 @@ GitHub リポジトリの Secrets に以下を登録してください。
 | --- | --- |
 | GMAIL_SMTP_USER | Gmail SMTPユーザー |
 | GMAIL_APP_PASSWORD | Gmail アプリパスワード |
-| MAIL_FROM | 送信元メールアドレス |
-| MAIL_TO | 送信先メールアドレス |
+| MAIL_FROM | 送信元メールアドレス。未指定時は `GMAIL_SMTP_USER` |
+| MAIL_TO | 送信先メールアドレス。未指定時は `GMAIL_SMTP_USER` |
 | MAIL_CC | CC。不要なら空で可 |
 | MAIL_BCC | BCC。不要なら空で可 |
 

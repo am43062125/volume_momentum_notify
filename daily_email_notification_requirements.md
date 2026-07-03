@@ -327,6 +327,9 @@ GitHub Actions で使用する Secrets の想定:
 * `MAIL_CC`
 * `MAIL_BCC`
 
+`MAIL_FROM` と `MAIL_TO` は省略可能とする。
+未指定の場合は、どちらも `GMAIL_SMTP_USER` と同じメールアドレスを使用する。
+
 ---
 
 ## スケジューリング
