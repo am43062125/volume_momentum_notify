@@ -5,7 +5,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-from volume_momentum.cli import _analysis_start_date, _fetch_and_store_market_caps, _run_fetch_data
+from volume_momentum.cli import _analysis_start_date, _fetch_and_store_market_caps, _run_fetch_data, build_parser
 from volume_momentum.config import load_config
 from volume_momentum.data import (
     FetchResult,
@@ -22,6 +22,11 @@ import pandas as pd
 class CliTests(unittest.TestCase):
     def test_analysis_start_date_uses_period_years(self):
         self.assertEqual(_analysis_start_date("2026-07-02", 5), "2021-07-02")
+
+    def test_daily_notify_accepts_github_style_limit_input(self):
+        args = build_parser().parse_args(["daily-notify", "--limit", "limit=5", "--dry-run"])
+
+        self.assertEqual(args.limit, 5)
 
     def test_fetch_and_store_market_caps_uses_yfinance_adapter(self):
         with tempfile.TemporaryDirectory() as tmpdir:

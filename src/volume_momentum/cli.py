@@ -108,7 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     daily_parser.add_argument("--market-caps", action="store_true", help="現在時価総額を更新します。")
     daily_parser.add_argument("--send-email", action="store_true", help="Gmail SMTPでメールを送信します。")
     daily_parser.add_argument("--dry-run", action="store_true", help="メール送信と通知履歴登録を行わず、レポートのみ出力します。")
-    daily_parser.add_argument("--limit", type=int, default=None, help="処理する銘柄数の上限。動作確認用です。")
+    daily_parser.add_argument("--limit", type=_limit_arg, default=None, help="処理する銘柄数の上限。動作確認用です。")
     daily_parser.add_argument("--as-of", default=None, help="対象取引日をYYYY-MM-DDで指定します。通常は最新取引日を使います。")
     daily_parser.add_argument("--output-dir", default=None, help="日次レポート出力先。")
     daily_parser.add_argument("--env-file", default=".env", help="メール認証情報を読み込む.envファイル。既定値: .env")
@@ -189,6 +189,17 @@ def _print_config_summary(config: object) -> None:
     print(f"現在時価総額フィルタ: {'有効' if config.universe.enable_current_market_cap_filter else '無効'}")
     print(f"現在時価総額下限: {config.universe.min_current_market_cap}")
     print(f"Markdown レポート言語: {config.report.language}")
+
+
+def _limit_arg(value: str) -> int:
+    normalized = value.removeprefix("limit=")
+    try:
+        limit = int(normalized)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("limit must be an integer") from exc
+    if limit <= 0:
+        raise argparse.ArgumentTypeError("limit must be greater than 0")
+    return limit
 
 
 def _run_fetch_data(config: object, download: bool, fetch_market_caps: bool, refresh: bool, limit: int | None) -> int:

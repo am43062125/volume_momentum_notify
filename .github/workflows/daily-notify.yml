@@ -57,12 +57,19 @@ jobs:
           MAIL_TO: ${{ secrets.MAIL_TO }}
           MAIL_CC: ${{ secrets.MAIL_CC }}
           MAIL_BCC: ${{ secrets.MAIL_BCC }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_SEND_EMAIL: ${{ github.event.inputs.send_email }}
         run: |
           args=(--config config.example.json daily-notify --download --market-caps)
-          if [[ -n "${{ github.event.inputs.limit }}" ]]; then
-            args+=(--limit "${{ github.event.inputs.limit }}")
+          limit_value="${INPUT_LIMIT#limit=}"
+          if [[ -n "$limit_value" ]]; then
+            if [[ ! "$limit_value" =~ ^[0-9]+$ ]]; then
+              echo "limit must be an integer. Received: $INPUT_LIMIT" >&2
+              exit 2
+            fi
+            args+=(--limit "$limit_value")
           fi
-          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event.inputs.send_email }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "schedule" || "$INPUT_SEND_EMAIL" == "true" ]]; then
             args+=(--send-email)
           else
             args+=(--dry-run)
