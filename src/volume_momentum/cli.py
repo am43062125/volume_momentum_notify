@@ -46,6 +46,13 @@ from volume_momentum.daily import (
 from volume_momentum.evaluation import EvaluationError, evaluate_events, summarize_evaluations
 from volume_momentum.reporting import write_reports
 from volume_momentum.signals import SignalError, detect_events
+from volume_momentum.trade_backtest import (
+    TradeBacktestError,
+    TradeBacktestInputs,
+    evaluate_trade_strategies,
+    summarize_trades,
+    write_trade_backtest_reports,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -103,6 +110,9 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser = subparsers.add_parser("report", help="保存済みデータからCSVと日本語Markdownレポートを生成します。")
     report_parser.add_argument("--limit", type=int, default=None, help="処理する銘柄数の上限。動作確認用です。")
     report_parser.add_argument("--output-dir", default=None, help="レポート出力先。")
+    trade_parser = subparsers.add_parser("trade-backtest", help="A/B/Cの仮想売買バックテストを実行します。")
+    trade_parser.add_argument("--limit", type=int, default=None, help="処理する銘柄数の上限。動作確認用です。")
+    trade_parser.add_argument("--output-dir", default=None, help="仮想売買レポート出力先。")
     daily_parser = subparsers.add_parser("daily-notify", help="日次イベント検知とGmail通知を実行します。")
     daily_parser.add_argument("--download", action="store_true", help="日次価格データをyfinanceから差分更新します。")
     daily_parser.add_argument("--market-caps", action="store_true", help="現在時価総額を更新します。")
@@ -178,6 +188,16 @@ def main(argv: list[str] | None = None) -> int:
                 env_file=args.env_file,
             )
         except (DataError, SignalError, DailyNotificationError) as exc:
+            parser.error(str(exc))
+
+    if args.command == "trade-backtest":
+        try:
+            return _run_trade_backtest(
+                config,
+                limit=args.limit,
+                output_dir=args.output_dir,
+            )
+        except (DataError, SignalError, TradeBacktestError) as exc:
             parser.error(str(exc))
 
     parser.error(f"Unknown command: {args.command}")
@@ -483,6 +503,88 @@ def _run_daily_notify(
         print(f"通知履歴登録件数: {record_count}")
         print(f"メール送信: {'実行' if email_sent else '未実行'}")
         print(f"日次レポート: {paths.output_dir}")
+        return 0
+    finally:
+        connection.close()
+
+
+def _run_trade_backtest(config: object, limit: int | None, output_dir: str | None) -> int:
+    connection = connect_database(config.data.database_path)
+    try:
+        initialize_database(connection)
+        min_market_cap = (
+            config.universe.min_current_market_cap
+            if config.universe.enable_current_market_cap_filter
+            else None
+        )
+        tickers = list_universe_tickers(connection, min_market_cap)
+        if limit is not None:
+            if limit <= 0:
+                raise DataError("--limit must be greater than 0")
+            tickers = tickers[:limit]
+        if not tickers:
+            raise DataError("仮想売買バックテストの対象銘柄がありません。先に fetch-data を実行してください。")
+
+        latest_trade_date = get_latest_trade_date(connection, tickers=tickers)
+        if latest_trade_date is None:
+            raise DataError("価格データがありません。先に fetch-data --download を実行してください。")
+        analysis_start = _analysis_start_date(latest_trade_date, config.backtest.period_years)
+        warmup_days = max(
+            config.signal.long_trading_value_window,
+            config.signal.moving_average_window,
+            config.trade_backtest.atr_window,
+            config.trade_backtest.relative_return_window,
+        ) * 3
+        load_start = _date_offset(analysis_start, -warmup_days)
+        price_bars = load_price_bars(connection, tickers=tickers, start_date=load_start)
+        if price_bars.empty:
+            raise DataError("価格データがありません。先に fetch-data --download を実行してください。")
+
+        events = detect_events(
+            price_bars,
+            config.signal,
+            cooldown_days=config.backtest.reentry_cooldown_days,
+        )
+        if not events.empty:
+            events = events[events["event_date"] >= analysis_start].reset_index(drop=True)
+
+        benchmark_tickers = list_instrument_tickers(connection, "benchmark")
+        benchmark_bars = load_price_bars(connection, tickers=benchmark_tickers, start_date=load_start)
+        benchmark_ticker = config.data.benchmark_tickers.get(config.trade_backtest.benchmark_name)
+        trades = pd.DataFrame()
+        summary = pd.DataFrame()
+        if not events.empty:
+            trades = evaluate_trade_strategies(
+                TradeBacktestInputs(
+                    events=events,
+                    price_bars=price_bars,
+                    benchmark_bars=benchmark_bars,
+                    benchmark_ticker=benchmark_ticker,
+                    config=config.trade_backtest,
+                )
+            )
+            summary = summarize_trades(trades)
+
+        paths = write_trade_backtest_reports(
+            trades=trades,
+            summary=summary,
+            output_dir=output_dir or config.trade_backtest.output_dir,
+            analysis_start_date=analysis_start,
+            analysis_end_date=latest_trade_date,
+            event_count=len(events),
+            universe_count=len(tickers),
+        )
+
+        print("仮想売買バックテストを実行しました。")
+        print(f"対象銘柄数: {len(tickers)}")
+        print(f"分析開始日: {analysis_start}")
+        print(f"分析終了日: {latest_trade_date}")
+        print(f"イベント数: {len(events)}")
+        print(f"トレード数: {len(trades)}")
+        if not summary.empty:
+            print("戦略別サマリー:")
+            print(summary.to_string(index=False))
+        print(f"CSV/Markdownレポートを出力しました: {paths.output_dir}")
         return 0
     finally:
         connection.close()

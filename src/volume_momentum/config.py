@@ -73,6 +73,20 @@ class EmailConfig:
 
 
 @dataclass(frozen=True)
+class TradeBacktestConfig:
+    output_dir: Path
+    strategies: tuple[str, ...]
+    atr_window: int
+    stop_atr_multiple: float
+    take_profit_r_multiple: float
+    fixed_hold_days: int
+    max_hold_days: int
+    relative_return_window: int
+    min_relative_return: float
+    benchmark_name: str
+
+
+@dataclass(frozen=True)
 class AppConfig:
     backtest: BacktestConfig
     data: DataConfig
@@ -81,6 +95,7 @@ class AppConfig:
     report: ReportConfig
     daily: DailyConfig
     email: EmailConfig
+    trade_backtest: TradeBacktestConfig
 
 
 class ConfigError(ValueError):
@@ -148,6 +163,26 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigError("email.smtp_port must be greater than 0")
     if config.email.use_starttls and config.email.use_ssl:
         raise ConfigError("email.use_starttls and email.use_ssl cannot both be true")
+    if not config.trade_backtest.strategies:
+        raise ConfigError("trade_backtest.strategies must not be empty")
+    allowed_strategies = {"A", "B", "C"}
+    invalid_strategies = set(config.trade_backtest.strategies).difference(allowed_strategies)
+    if invalid_strategies:
+        raise ConfigError("trade_backtest.strategies may contain only A, B, and C")
+    if config.trade_backtest.atr_window <= 0:
+        raise ConfigError("trade_backtest.atr_window must be greater than 0")
+    if config.trade_backtest.stop_atr_multiple <= 0:
+        raise ConfigError("trade_backtest.stop_atr_multiple must be greater than 0")
+    if config.trade_backtest.take_profit_r_multiple <= 0:
+        raise ConfigError("trade_backtest.take_profit_r_multiple must be greater than 0")
+    if config.trade_backtest.fixed_hold_days <= 0:
+        raise ConfigError("trade_backtest.fixed_hold_days must be greater than 0")
+    if config.trade_backtest.max_hold_days <= 0:
+        raise ConfigError("trade_backtest.max_hold_days must be greater than 0")
+    if config.trade_backtest.relative_return_window <= 0:
+        raise ConfigError("trade_backtest.relative_return_window must be greater than 0")
+    if config.trade_backtest.benchmark_name not in config.data.benchmark_tickers:
+        raise ConfigError("trade_backtest.benchmark_name must exist in data.benchmark_tickers")
 
 
 def _parse_config(raw: dict[str, Any]) -> AppConfig:
@@ -158,10 +193,13 @@ def _parse_config(raw: dict[str, Any]) -> AppConfig:
     report = _required_mapping(raw, "report")
     daily = raw.get("daily", {})
     email = raw.get("email", {})
+    trade_backtest = raw.get("trade_backtest", {})
     if not isinstance(daily, dict):
         raise ConfigError("daily must be an object")
     if not isinstance(email, dict):
         raise ConfigError("email must be an object")
+    if not isinstance(trade_backtest, dict):
+        raise ConfigError("trade_backtest must be an object")
 
     return AppConfig(
         backtest=BacktestConfig(
@@ -215,6 +253,18 @@ def _parse_config(raw: dict[str, Any]) -> AppConfig:
             to_env=_optional_str(email, "to_env", "MAIL_TO"),
             cc_env=_optional_str_or_none(email, "cc_env", "MAIL_CC"),
             bcc_env=_optional_str_or_none(email, "bcc_env", "MAIL_BCC"),
+        ),
+        trade_backtest=TradeBacktestConfig(
+            output_dir=Path(_optional_str(trade_backtest, "output_dir", "reports/trade_backtest")),
+            strategies=tuple(_optional_str_list(trade_backtest, "strategies", ["A", "B", "C"])),
+            atr_window=_optional_int_with_default(trade_backtest, "atr_window", 14),
+            stop_atr_multiple=_optional_float_with_default(trade_backtest, "stop_atr_multiple", 1.5),
+            take_profit_r_multiple=_optional_float_with_default(trade_backtest, "take_profit_r_multiple", 2.0),
+            fixed_hold_days=_optional_int_with_default(trade_backtest, "fixed_hold_days", 21),
+            max_hold_days=_optional_int_with_default(trade_backtest, "max_hold_days", 21),
+            relative_return_window=_optional_int_with_default(trade_backtest, "relative_return_window", 20),
+            min_relative_return=_optional_float_with_default(trade_backtest, "min_relative_return", 0.0),
+            benchmark_name=_optional_str(trade_backtest, "benchmark_name", "topix"),
         ),
     )
 
@@ -300,6 +350,22 @@ def _optional_float(data: dict[str, Any], key: str) -> float | None:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise ConfigError(f"{key} must be a number or null")
     return float(value)
+
+
+def _optional_float_with_default(data: dict[str, Any], key: str, default: float) -> float:
+    value = data.get(key, default)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ConfigError(f"{key} must be a number")
+    return float(value)
+
+
+def _optional_str_list(data: dict[str, Any], key: str, default: list[str]) -> list[str]:
+    value = data.get(key, default)
+    if not isinstance(value, list) or not value:
+        raise ConfigError(f"{key} must be a non-empty list")
+    if any(not isinstance(item, str) or not item for item in value):
+        raise ConfigError(f"{key} must contain only non-empty strings")
+    return value
 
 
 def _required_int_list(data: dict[str, Any], key: str) -> list[int]:

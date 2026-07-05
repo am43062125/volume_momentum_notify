@@ -53,5 +53,17 @@
     "to_env": "MAIL_TO",
     "cc_env": "MAIL_CC",
     "bcc_env": "MAIL_BCC"
+  },
+  "trade_backtest": {
+    "output_dir": "reports/test-1y/trade_backtest",
+    "strategies": ["A", "B", "C"],
+    "atr_window": 14,
+    "stop_atr_multiple": 1.5,
+    "take_profit_r_multiple": 2.0,
+    "fixed_hold_days": 21,
+    "max_hold_days": 21,
+    "relative_return_window": 20,
+    "min_relative_return": 0.0,
+    "benchmark_name": "topix"
   }
 }

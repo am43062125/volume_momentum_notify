@@ -24,11 +24,17 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.daily.price_refresh_lookback_days, 10)
         self.assertEqual(config.email.smtp_host, "smtp.gmail.com")
         self.assertEqual(config.email.username_env, "GMAIL_SMTP_USER")
+        self.assertEqual(config.trade_backtest.strategies, ("A", "B", "C"))
+        self.assertEqual(config.trade_backtest.atr_window, 14)
+        self.assertEqual(config.trade_backtest.stop_atr_multiple, 1.5)
+        self.assertEqual(config.trade_backtest.take_profit_r_multiple, 2.0)
+        self.assertEqual(config.trade_backtest.benchmark_name, "topix")
 
     def test_daily_and_email_config_have_defaults_for_existing_configs(self):
         raw = json.loads(Path("config.example.json").read_text(encoding="utf-8"))
         raw.pop("daily")
         raw.pop("email")
+        raw.pop("trade_backtest")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "config.json"
@@ -39,6 +45,8 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(config.daily.enabled)
         self.assertEqual(config.daily.output_dir, Path("reports/daily"))
         self.assertEqual(config.email.smtp_port, 587)
+        self.assertEqual(config.trade_backtest.output_dir, Path("reports/trade_backtest"))
+        self.assertEqual(config.trade_backtest.strategies, ("A", "B", "C"))
 
     def test_rejects_non_japanese_markdown_report_language(self):
         raw = json.loads(Path("config.example.json").read_text(encoding="utf-8"))
@@ -92,6 +100,17 @@ class ConfigTests(unittest.TestCase):
         raw = json.loads(Path("config.example.json").read_text(encoding="utf-8"))
         raw["daily"]["monitoring_lookback_days"] = 21
         raw["daily"]["early_monitoring_days"] = 21
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "config.json"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+
+            with self.assertRaises(ConfigError):
+                load_config(path)
+
+    def test_rejects_unknown_trade_backtest_strategy(self):
+        raw = json.loads(Path("config.example.json").read_text(encoding="utf-8"))
+        raw["trade_backtest"]["strategies"] = ["A", "D"]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "config.json"

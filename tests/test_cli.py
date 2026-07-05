@@ -29,6 +29,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.limit, 5)
         self.assertTrue(args.send_empty_email)
 
+    def test_trade_backtest_command_parses(self):
+        args = build_parser().parse_args(["trade-backtest", "--limit", "5", "--output-dir", "reports/trade"])
+
+        self.assertEqual(args.command, "trade-backtest")
+        self.assertEqual(args.limit, 5)
+        self.assertEqual(args.output_dir, "reports/trade")
+
     def test_fetch_and_store_market_caps_uses_yfinance_adapter(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             connection = connect_database(Path(tmpdir) / "test.sqlite3")

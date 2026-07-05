@@ -120,6 +120,37 @@ python -m volume_momentum.cli --config config.example.json backtest --write-repo
 python -m volume_momentum.cli --config config.example.json report
 ```
 
+## 仮想売買バックテスト
+
+既存の `backtest` はイベントスタディとして残し、仮想売買ルールの比較は別コマンド `trade-backtest` で実行します。
+
+```powershell
+python -m volume_momentum.cli --config config.example.json trade-backtest
+```
+
+動作確認だけ小さく行う場合:
+
+```powershell
+python -m volume_momentum.cli --config config.example.json trade-backtest --limit 20
+```
+
+初期設定では、以下の3戦略を比較します。
+
+| 戦略 | 内容 |
+| --- | --- |
+| A | 翌営業日始値でエントリーし、21営業日後の終値で決済 |
+| B | 翌営業日始値でエントリーし、ATR14×1.5損切、2R利確、最大21営業日で決済 |
+| C | Bに相対20日リターンフィルタを追加 |
+
+出力先は既定で `reports/trade_backtest` です。
+
+| ファイル | 内容 |
+| --- | --- |
+| trades.csv | 仮想売買の明細 |
+| summary.csv | 戦略別の詳細集計 |
+| strategy_comparison.csv | 戦略比較用の主要指標 |
+| report.md | 人間が確認するための日本語Markdownレポート |
+
 ## 日次イベント通知
 
 日次通知は、JPX公式一覧から取得した全上場株式ユニバースを対象に、最新取引日の新規ヒットと過去63営業日以内の監視中銘柄を抽出します。
